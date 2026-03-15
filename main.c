@@ -10,8 +10,8 @@ MFRC522 rfid(SS_PIN, RST_PIN);
 MFRC522::MIFARE_Key key;
 
 /* WiFi Credentials */
-const char* ssid = "kri";
-const char* password = "12345678";
+const char* ssid = "///";
+const char* password = "////";
 
 /* Server URL */
 String serverName = "https://script.google.com/macros/s/AKfycbwgmJ-iL5MdkHIaltfWqp707KeKdWXp-94Yuv_T2T-G-ax_haZHZilSyca8EEPe7ybU/exec?uid=";
