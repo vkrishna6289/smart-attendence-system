@@ -1,0 +1,43 @@
+function doGet(e) {
+  var uid = e.parameter.uid;
+
+  if (!uid) {
+    return ContentService.createTextOutput("No UID received");
+  }
+
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var dbSheet  = ss.getSheetByName("Database");
+  var logSheet = ss.getSheetByName("Logs");
+
+  // --- Look up UID in Database ---
+  var dbData = dbSheet.getDataRange().getValues();
+  var name   = null;
+  var rollNo = null;
+
+  for (var i = 1; i < dbData.length; i++) {
+    var rowUID      = String(dbData[i][0]).trim().toLowerCase();  // Column A = UID
+    var incomingUID = String(uid).trim().toLowerCase();
+
+    if (rowUID === incomingUID) {
+      name   = String(dbData[i][1]).trim();   // Column B = Name
+      rollNo = String(dbData[i][2]).trim();   // Column C = Roll No
+      break;
+    }
+  }
+
+  // --- Log the scan ---
+  var timestamp   = new Date();
+  var status      = name ? "Present" : "Unknown";
+  var displayName = name   ? name   : "Unknown";
+  var displayRoll = rollNo ? rollNo : "N/A";
+
+  // Logs columns: TIME | UID | Name | Roll No | Status
+  logSheet.appendRow([timestamp, uid, displayName, displayRoll, status]);
+
+  // --- Return response to ESP32 ---
+  var response = name
+    ? "Present: " + name + " | Roll No: " + rollNo
+    : "UID not found: " + uid;
+
+  return ContentService.createTextOutput(response);
+}
