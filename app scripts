@@ -1,43 +1,109 @@
 function doGet(e) {
-  var uid = e.parameter.uid;
+  var uid   = e.parameter.uid;
+  var sheet = e.parameter.sheet;
+  var page  = e.parameter.page;
 
-  if (!uid) {
-    return ContentService.createTextOutput("No UID received");
+  // ── Serve website ──────────────────────────────────────────────
+  if (page === 'website') {
+    return HtmlService.createHtmlOutputFromFile('index')
+      .setTitle('AttendanceOS')
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
   }
 
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  // ── Website JSON fetch (fallback method) ───────────────────────
+  if (sheet) {
+    var ss2 = SpreadsheetApp.getActiveSpreadsheet();
+    var sh  = ss2.getSheetByName(sheet);
+
+    if (!sh) {
+      return ContentService.createTextOutput(JSON.stringify([]))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    var rows    = sh.getDataRange().getValues();
+    var headers = rows[0];
+    var result  = [];
+
+    for (var i = 1; i < rows.length; i++) {
+      var obj = {};
+      for (var j = 0; j < headers.length; j++) {
+        var key = headers[j].toString().toLowerCase().trim();
+        if (key === 'timestamp' || key === 'time') key = 'time';
+        if (key === 'roll no' || key === 'rollno' || key === 'roll no.') key = 'rollno';
+        if (key === 'uid')    key = 'uid';
+        if (key === 'name')   key = 'name';
+        if (key === 'status') key = 'status';
+        obj[key] = rows[i][j] ? rows[i][j].toString() : '';
+      }
+      result.push(obj);
+    }
+
+    return ContentService.createTextOutput(JSON.stringify(result))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  // ── ESP32 attendance scan ──────────────────────────────────────
+  if (!uid) {
+    return ContentService.createTextOutput("No UID or sheet parameter received.");
+  }
+
+  var ss       = SpreadsheetApp.getActiveSpreadsheet();
   var dbSheet  = ss.getSheetByName("Database");
   var logSheet = ss.getSheetByName("Logs");
 
-  // --- Look up UID in Database ---
   var dbData = dbSheet.getDataRange().getValues();
   var name   = null;
   var rollNo = null;
 
   for (var i = 1; i < dbData.length; i++) {
-    var rowUID      = String(dbData[i][0]).trim().toLowerCase();  // Column A = UID
+    var rowUID      = String(dbData[i][0]).trim().toLowerCase();
     var incomingUID = String(uid).trim().toLowerCase();
-
     if (rowUID === incomingUID) {
-      name   = String(dbData[i][1]).trim();   // Column B = Name
-      rollNo = String(dbData[i][2]).trim();   // Column C = Roll No
+      name   = String(dbData[i][1]).trim();
+      rollNo = String(dbData[i][2]).trim();
       break;
     }
   }
 
-  // --- Log the scan ---
   var timestamp   = new Date();
   var status      = name ? "Present" : "Unknown";
   var displayName = name   ? name   : "Unknown";
   var displayRoll = rollNo ? rollNo : "N/A";
 
-  // Logs columns: TIME | UID | Name | Roll No | Status
   logSheet.appendRow([timestamp, uid, displayName, displayRoll, status]);
 
-  // --- Return response to ESP32 ---
   var response = name
     ? "Present: " + name + " | Roll No: " + rollNo
     : "UID not found: " + uid;
 
   return ContentService.createTextOutput(response);
+}
+
+// ── Called by the website via google.script.run ────────────────
+function getLogsData() {
+  var ss    = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName("Logs");
+  if (!sheet) return [];
+
+  var rows    = sheet.getDataRange().getValues();
+  if (rows.length < 2) return [];
+
+  var headers = rows[0];
+  var result  = [];
+
+  for (var i = 1; i < rows.length; i++) {
+    var obj = {};
+    for (var j = 0; j < headers.length; j++) {
+      var key = headers[j].toString().toLowerCase().trim();
+      if (key === 'timestamp' || key === 'time') key = 'time';
+      if (key === 'roll no' || key === 'rollno' || key === 'roll no.') key = 'rollno';
+      if (key === 'uid')    key = 'uid';
+      if (key === 'name')   key = 'name';
+      if (key === 'status') key = 'status';
+      obj[key] = rows[i][j] ? rows[i][j].toString() : '';
+    }
+    result.push(obj);
+  }
+
+  return result;
 }
