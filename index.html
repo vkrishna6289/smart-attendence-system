@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AttendanceOS</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #111118;
+    --border: #1e1e2e;
+    --accent: #00ff88;
+    --warn: #ff6b35;
+    --text: #e8e8f0;
+    --muted: #555570;
+    --card: #13131f;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(0,255,136,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,255,136,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none; z-index: 0;
+  }
+  .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; position: relative; z-index: 1; }
+
+  /* ── Header ── */
+  header {
+    padding: 28px 0 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center;
+    justify-content: space-between; flex-wrap: wrap; gap: 16px;
+  }
+  .logo { display: flex; align-items: center; gap: 12px; }
+  .logo-icon {
+    width: 36px; height: 36px; background: var(--accent);
+    border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px;
+  }
+  .logo h1 { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; }
+  .logo span { color: var(--accent); }
+  .status-bar {
+    display: flex; align-items: center; gap: 20px;
+    font-family: 'Space Mono', monospace; font-size: 11px; color: var(--muted);
+  }
+  .live-dot {
+    width: 8px; height: 8px; background: var(--accent);
+    border-radius: 50%; animation: pulse 1.5s infinite;
+    display: inline-block; margin-right: 6px;
+  }
+  @keyframes pulse {
+    0%,100% { opacity:1; box-shadow: 0 0 0 0 rgba(0,255,136,0.4); }
+    50%      { opacity:.7; box-shadow: 0 0 0 6px rgba(0,255,136,0); }
+  }
+
+  /* ── Stats ── */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 16px; margin: 28px 0;
+  }
+  .stat-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 20px;
+    position: relative; overflow: hidden; transition: border-color .2s;
+  }
+  .stat-card:hover { border-color: var(--accent); }
+  .stat-card::before {
+    content:''; position:absolute; top:0; left:0; right:0;
+    height:2px; background: linear-gradient(90deg, var(--accent), transparent);
+  }
+  .stat-label {
+    font-family:'Space Mono',monospace; font-size:10px;
+    color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:8px;
+  }
+  .stat-value { font-size:36px; font-weight:800; line-height:1; color:var(--accent); }
+  .stat-value.warn   { color: var(--warn); }
+  .stat-value.purple { color: #a78bfa; }
+  .stat-sub { font-size:11px; color:var(--muted); margin-top:6px; font-family:'Space Mono',monospace; }
+
+  /* ── Controls ── */
+  .controls { display:flex; gap:12px; margin-bottom:24px; flex-wrap:wrap; align-items:center; }
+  .search-box {
+    flex:1; min-width:200px;
+    background:var(--card); border:1px solid var(--border);
+    border-radius:8px; padding:10px 16px;
+    color:var(--text); font-family:'Space Mono',monospace; font-size:13px;
+    outline:none; transition:border-color .2s;
+  }
+  .search-box:focus { border-color: var(--accent); }
+  .search-box::placeholder { color: var(--muted); }
+  select.filter-select {
+    background:var(--card); border:1px solid var(--border);
+    border-radius:8px; padding:10px 16px;
+    color:var(--text); font-family:'Space Mono',monospace; font-size:12px;
+    outline:none; cursor:pointer; transition:border-color .2s;
+  }
+  select.filter-select:focus { border-color: var(--accent); }
+  .btn {
+    background:var(--accent); color:#000; border:none;
+    border-radius:8px; padding:10px 20px;
+    font-family:'Syne',sans-serif; font-weight:700; font-size:13px;
+    cursor:pointer; transition:opacity .2s, transform .1s;
+    white-space: nowrap;
+  }
+  .btn:hover { opacity:.85; }
+  .btn:active { transform:scale(.97); }
+  .btn.secondary {
+    background:var(--surface); border:1px solid var(--border); color:var(--text);
+  }
+  .btn.secondary:hover { border-color:var(--accent); color:var(--accent); }
+
+  /* ── Table ── */
+  .table-wrapper {
+    background:var(--card); border:1px solid var(--border);
+    border-radius:12px; overflow:hidden;
+  }
+  .table-header {
+    padding:16px 20px; border-bottom:1px solid var(--border);
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .table-header h2 {
+    font-size:14px; font-weight:600;
+    font-family:'Space Mono',monospace; color:var(--muted);
+    text-transform:uppercase; letter-spacing:1px;
+  }
+  .record-count { font-size:12px; font-family:'Space Mono',monospace; color:var(--muted); }
+  table { width:100%; border-collapse:collapse; }
+  thead tr { background:rgba(0,255,136,.04); }
+  th {
+    padding:12px 20px; text-align:left;
+    font-family:'Space Mono',monospace; font-size:10px;
+    color:var(--muted); text-transform:uppercase; letter-spacing:1.5px;
+    font-weight:400; border-bottom:1px solid var(--border);
+  }
+  td { padding:14px 20px; border-bottom:1px solid rgba(30,30,46,.6); font-size:13px; vertical-align:middle; }
+  tr:last-child td { border-bottom:none; }
+  tbody tr { transition:background .15s; }
+  tbody tr:hover { background:rgba(0,255,136,.03); }
+
+  .uid-badge {
+    font-family:'Space Mono',monospace; font-size:11px;
+    background:rgba(0,255,136,.08); color:var(--accent);
+    padding:4px 10px; border-radius:4px;
+    border:1px solid rgba(0,255,136,.15); letter-spacing:1px;
+    display:inline-block;
+  }
+  .roll-badge {
+    font-family:'Space Mono',monospace; font-size:11px;
+    background:rgba(124,58,237,.1); color:#a78bfa;
+    padding:4px 10px; border-radius:4px;
+    border:1px solid rgba(124,58,237,.2);
+    display:inline-block;
+  }
+  .name-cell { font-weight:600; font-size:14px; }
+  .time-cell { font-family:'Space Mono',monospace; font-size:12px; color:var(--muted); }
+  .date-cell { font-family:'Space Mono',monospace; font-size:12px; }
+  .status-badge {
+    display:inline-flex; align-items:center; gap:6px;
+    padding:4px 10px; border-radius:20px;
+    font-size:11px; font-weight:600; font-family:'Space Mono',monospace;
+  }
+  .status-badge.present { background:rgba(0,255,136,.1); color:var(--accent); border:1px solid rgba(0,255,136,.2); }
+  .status-badge.unknown { background:rgba(255,107,53,.1); color:var(--warn); border:1px solid rgba(255,107,53,.2); }
+  .dot { width:6px; height:6px; border-radius:50%; background:currentColor; }
+
+  /* ── States ── */
+  .empty-state { padding:60px 20px; text-align:center; color:var(--muted); }
+  .empty-state .icon { font-size:48px; margin-bottom:16px; }
+  .empty-state p { font-size:14px; line-height:1.8; }
+  .loading-row td {
+    text-align:center; padding:40px; color:var(--muted);
+    font-family:'Space Mono',monospace; font-size:12px;
+  }
+  .spinner {
+    display:inline-block; width:16px; height:16px;
+    border:2px solid var(--border); border-top-color:var(--accent);
+    border-radius:50%; animation:spin .7s linear infinite;
+    margin-right:8px; vertical-align:middle;
+  }
+  @keyframes spin { to { transform:rotate(360deg); } }
+
+  /* ── Toast ── */
+  .toast {
+    position:fixed; bottom:24px; right:24px;
+    background:var(--card); border:1px solid var(--accent);
+    border-radius:10px; padding:14px 20px;
+    font-family:'Space Mono',monospace; font-size:12px; color:var(--text);
+    z-index:1000; transform:translateY(80px); opacity:0;
+    transition:all .3s cubic-bezier(.34,1.56,.64,1); max-width:320px;
+  }
+  .toast.show { transform:translateY(0); opacity:1; }
+  .toast.error { border-color:var(--warn); }
+
+  /* ── Pagination ── */
+  .pagination {
+    display:flex; align-items:center; justify-content:center;
+    gap:8px; padding:16px; border-top:1px solid var(--border);
+  }
+  .page-btn {
+    width:32px; height:32px;
+    display:flex; align-items:center; justify-content:center;
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:6px; color:var(--muted);
+    font-family:'Space Mono',monospace; font-size:12px;
+    cursor:pointer; transition:all .15s;
+  }
+  .page-btn:hover, .page-btn.active {
+    border-color:var(--accent); color:var(--accent); background:rgba(0,255,136,.07);
+  }
+  .page-btn:disabled { opacity:.3; cursor:not-allowed; }
+
+  footer {
+    text-align:center; padding:32px 0 24px;
+    font-family:'Space Mono',monospace; font-size:11px; color:var(--muted);
+    position:relative; z-index:1;
+  }
+
+  @media(max-width:600px) {
+    .stats-row { grid-template-columns:1fr 1fr; }
+    th:nth-child(4), td:nth-child(4) { display:none; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Header -->
+  <header>
+    <div class="logo">
+      <div class="logo-icon">📡</div>
+      <h1>Attendance<span>OS</span></h1>
+    </div>
+    <div class="status-bar">
+      <span><span class="live-dot"></span>LIVE</span>
+      <span id="last-updated">never synced</span>
+      <span id="clock">--:--:--</span>
+    </div>
+  </header>
+
+  <!-- Stats -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-label">Total Scans</div>
+      <div class="stat-value" id="stat-total">--</div>
+      <div class="stat-sub">all time</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Today's Scans</div>
+      <div class="stat-value" id="stat-today">--</div>
+      <div class="stat-sub" id="stat-today-date">--</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Unique Cards</div>
+      <div class="stat-value purple" id="stat-unique">--</div>
+      <div class="stat-sub">distinct UIDs</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Unknown Scans</div>
+      <div class="stat-value warn" id="stat-unknown">--</div>
+      <div class="stat-sub">unregistered UIDs</div>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls">
+    <input class="search-box" type="text" id="search" placeholder="Search by name, UID, roll no..."/>
+    <select class="filter-select" id="status-filter">
+      <option value="">All Status</option>
+      <option value="present">Present</option>
+      <option value="unknown">Unknown</option>
+    </select>
+    <select class="filter-select" id="date-filter">
+      <option value="">All Dates</option>
+    </select>
+    <button class="btn" onclick="fetchData()">↻ Refresh</button>
+  </div>
+
+  <!-- Table -->
+  <div class="table-wrapper">
+    <div class="table-header">
+      <h2>// Scan Log</h2>
+      <span class="record-count" id="record-count">loading...</span>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Name</th>
+          <th>Roll No</th>
+          <th>UID</th>
+          <th>Date &amp; Time</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="table-body">
+        <tr class="loading-row">
+          <td colspan="6"><span class="spinner"></span> Loading attendance data...</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="pagination" id="pagination"></div>
+  </div>
+
+  <footer>AttendanceOS &nbsp;·&nbsp; ESP32 + RFID + Google Sheets</footer>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  let allData = [];
+  let filtered = [];
+  const PAGE_SIZE = 15;
+  let currentPage = 1;
+
+  /* ── Clock ── */
+  setInterval(() => {
+    document.getElementById('clock').textContent = new Date().toLocaleTimeString();
+  }, 1000);
+  document.getElementById('clock').textContent = new Date().toLocaleTimeString();
+
+  /* ── Toast ── */
+  function showToast(msg, isError) {
+    var t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast' + (isError ? ' error' : '');
+    t.classList.add('show');
+    setTimeout(function(){ t.classList.remove('show'); }, 3500);
+  }
+
+  /* ── Fetch data via google.script.run ── */
+  function fetchData() {
+    var tbody = document.getElementById('table-body');
+    tbody.innerHTML = '<tr class="loading-row"><td colspan="6"><span class="spinner"></span> Fetching from Logs sheet...</td></tr>';
+
+    google.script.run
+      .withSuccessHandler(function(data) {
+        if (!data || data.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><div class="icon">📋</div><p>No records in the Logs sheet yet.<br/>Scan a card with the ESP32 to populate it.</p></div></td></tr>';
+          return;
+        }
+        allData = data;
+        populateDateFilter();
+        applyFilters();
+        updateStats();
+        document.getElementById('last-updated').textContent = new Date().toLocaleTimeString();
+        showToast('✓ Loaded ' + allData.length + ' records');
+      })
+      .withFailureHandler(function(err) {
+        tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><div class="icon">⚠️</div><p>Failed to load data.<br/>' + err.message + '</p></div></td></tr>';
+        showToast('Error: ' + err.message, true);
+      })
+      .getLogsData();   // calls the Apps Script function below
+  }
+
+  /* ── Date filter ── */
+  function populateDateFilter() {
+    var dates = [];
+    allData.forEach(function(r) {
+      var d = formatDT(r.time).date;
+      if (d !== '—' && dates.indexOf(d) === -1) dates.push(d);
+    });
+    dates.sort().reverse();
+
+    var sel = document.getElementById('date-filter');
+    sel.innerHTML = '<option value="">All Dates</option>';
+    dates.forEach(function(d) {
+      var opt = document.createElement('option');
+      opt.value = d; opt.textContent = d;
+      sel.appendChild(opt);
+    });
+  }
+
+  /* ── Parse timestamp ── */
+  function formatDT(raw) {
+    if (!raw) return { date: '—', time: '—' };
+    var d = new Date(raw);
+    if (isNaN(d.getTime())) return { date: String(raw), time: '—' };
+    var date = d.toLocaleDateString('en-GB');
+    var time = d.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+    return { date: date, time: time };
+  }
+
+  /* ── Filters ── */
+  function applyFilters() {
+    var search  = document.getElementById('search').value.toLowerCase();
+    var dateF   = document.getElementById('date-filter').value;
+    var statusF = document.getElementById('status-filter').value.toLowerCase();
+
+    filtered = allData.filter(function(row) {
+      var dt      = formatDT(row.time);
+      var name    = (row.name   || '').toLowerCase();
+      var uid     = (row.uid    || '').toLowerCase();
+      var roll    = (row.rollno || '').toLowerCase();
+      var status  = (row.status || '').toLowerCase();
+
+      var matchSearch = !search  || [name,uid,roll].some(function(v){ return v.includes(search); });
+      var matchDate   = !dateF   || dt.date === dateF;
+      var matchStatus = !statusF || status.includes(statusF);
+      return matchSearch && matchDate && matchStatus;
+    });
+
+    currentPage = 1;
+    renderTable();
+    renderPagination();
+    document.getElementById('record-count').textContent =
+      filtered.length + ' record' + (filtered.length !== 1 ? 's' : '');
+  }
+
+  /* ── Render table ── */
+  function renderTable() {
+    var tbody = document.getElementById('table-body');
+    var start = (currentPage - 1) * PAGE_SIZE;
+    var page  = filtered.slice(start, start + PAGE_SIZE);
+
+    if (page.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><div class="icon">🔍</div><p>No records match your filters.</p></div></td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = page.map(function(row, i) {
+      var dt     = formatDT(row.time);
+      var uid    = (row.uid    || '??').toUpperCase();
+      var name   = row.name   || '—';
+      var roll   = row.rollno || 'N/A';
+      var status = (row.status || 'present').toLowerCase();
+      var ok     = status === 'present';
+
+      return '<tr>'
+        + '<td style="color:var(--muted);font-family:\'Space Mono\',monospace;font-size:11px">' + (start+i+1) + '</td>'
+        + '<td><div class="name-cell">' + name + '</div></td>'
+        + '<td><span class="roll-badge">' + roll + '</span></td>'
+        + '<td><span class="uid-badge">'  + uid  + '</span></td>'
+        + '<td><div class="date-cell">' + dt.date + '</div>'
+        +     '<div class="time-cell" style="margin-top:3px">' + dt.time + '</div></td>'
+        + '<td><span class="status-badge ' + (ok?'present':'unknown') + '">'
+        +   '<span class="dot"></span>' + (ok?'PRESENT':'UNKNOWN') + '</span></td>'
+        + '</tr>';
+    }).join('');
+  }
+
+  /* ── Pagination ── */
+  function renderPagination() {
+    var total = Math.ceil(filtered.length / PAGE_SIZE);
+    var pg = document.getElementById('pagination');
+    if (total <= 1) { pg.innerHTML = ''; return; }
+
+    var html = '<button class="page-btn" ' + (currentPage===1?'disabled':'') + ' onclick="goPage(' + (currentPage-1) + ')">‹</button>';
+    for (var i = 1; i <= total; i++) {
+      if (i===1 || i===total || Math.abs(i-currentPage)<=1) {
+        html += '<button class="page-btn ' + (i===currentPage?'active':'') + '" onclick="goPage(' + i + ')">' + i + '</button>';
+      } else if (Math.abs(i-currentPage)===2) {
+        html += '<span style="color:var(--muted);font-family:\'Space Mono\',monospace;font-size:12px">…</span>';
+      }
+    }
+    html += '<button class="page-btn" ' + (currentPage===total?'disabled':'') + ' onclick="goPage(' + (currentPage+1) + ')">›</button>';
+    pg.innerHTML = html;
+  }
+  function goPage(p) { currentPage = p; renderTable(); renderPagination(); }
+
+  /* ── Stats ── */
+  function updateStats() {
+    var today = new Date().toLocaleDateString('en-GB');
+    var todayCount   = allData.filter(function(r){ return formatDT(r.time).date === today; }).length;
+    var uniqueUIDs   = {};
+    allData.forEach(function(r){ if(r.uid) uniqueUIDs[r.uid] = 1; });
+    var unknownCount = allData.filter(function(r){ return (r.status||'').toLowerCase()==='unknown'; }).length;
+
+    document.getElementById('stat-total').textContent   = allData.length;
+    document.getElementById('stat-today').textContent   = todayCount;
+    document.getElementById('stat-today-date').textContent = today;
+    document.getElementById('stat-unique').textContent  = Object.keys(uniqueUIDs).length;
+    document.getElementById('stat-unknown').textContent = unknownCount;
+  }
+
+  /* ── Event listeners ── */
+  document.getElementById('search').addEventListener('input', applyFilters);
+  document.getElementById('date-filter').addEventListener('change', applyFilters);
+  document.getElementById('status-filter').addEventListener('change', applyFilters);
+
+  /* ── Auto-refresh every 30s ── */
+  setInterval(fetchData, 30000);
+
+  /* ── Initial load ── */
+  fetchData();
+</script>
+</body>
+</html>
