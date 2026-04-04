@@ -1,4 +1,6 @@
 function doGet(e) {
+  var cache = CacheService.getScriptCache();
+  cache.remove('dbData');
   var uid   = e.parameter.uid;
   var sheet = e.parameter.sheet;
   var page  = e.parameter.page;
@@ -47,11 +49,15 @@ function doGet(e) {
     return ContentService.createTextOutput("No UID or sheet parameter received.");
   }
 
-  var ss       = SpreadsheetApp.getActiveSpreadsheet();
-  var dbSheet  = ss.getSheetByName("Database");
-  var logSheet = ss.getSheetByName("Logs");
+ var ss = SpreadsheetApp.getActiveSpreadsheet();
+SpreadsheetApp.flush(); // ← ADD THIS LINE — forces fresh data read
 
-  var dbData = dbSheet.getDataRange().getValues();
+var dbSheet = ss.getSheetByName("Database");
+var logSheet = ss.getSheetByName("Logs");
+
+// Force a fresh read by getting the range again
+dbSheet.getDataRange(); // ← ADD THIS LINE
+var dbData = dbSheet.getDataRange().getValues();
   var name   = null;
   var rollNo = null;
 
